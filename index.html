@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>כל תא ותא · ספר ביולוגיה אינטראקטיבי לכיתה י׳</title>
+  <meta name="description" content="ספר ביולוגיה אינטראקטיבי בעברית בנושא מבוא לתא: כל איור מתרומם מהדף כדי שהתלמידים יוכלו לנבא, לנסות ולהבין." />
+  <style>
+    #loader {
+      position: fixed; inset: 0; z-index: 100;
+      display: grid; place-items: center;
+      background: #17141c; color: #f6f0e3;
+      font: 600 15px/1.4 system-ui, sans-serif;
+      transition: opacity 0.45s ease, visibility 0s 0.45s;
+    }
+    #loader.done { opacity: 0; visibility: hidden; pointer-events: none; }
+    #loader .t { font-size: 26px; letter-spacing: 0.02em; margin-bottom: 4px; text-align: center; }
+    #loader .s { color: #b9b0a2; font-size: 13px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="loader" aria-hidden="true"><div><div class="t">כל תא ותא</div><div class="s">פותח את הספר…</div></div></div>
+  <main id="app"></main>
+  <noscript><p style="padding:16px;text-align:center">כדי לפתוח את הספר צריך להפעיל JavaScript בדפדפן.</p></noscript>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
