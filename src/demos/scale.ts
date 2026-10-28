@@ -1,11 +1,12 @@
 /**
  * שיעור 1: עולם קטן – סדרי גודל.
- * מסע זום רציף על ציר לוגריתמי בין כף יד (10 cm) למולקולת מים (0.3 nm),
- * ואתגר סידור 5 עצמים מהקטן לגדול.
+ * מסע זום קולנועי רציף בסגנון Powers of Ten בין כף יד (10 cm) למולקולת מים (0.3 nm):
+ * כולל תנודת קשרים כימיים במולקולת המים, ריבוזום עם סרט mRNA, נגיף עם חלבוני ספייק,
+ * חיידק עם שוטון מתפתל, תא דם אדום דו-קעור ותא צמח עם גרעין וחלולית.
  */
 import * as THREE from 'three';
 import type { DemoFactory } from './types';
-import { inked, sketchLines } from '../render/ink';
+import { inked, organicTube, sketchLines, SpringScalar } from '../render/ink';
 import { SCALE_ITEMS } from '../sim/models';
 
 const CHALLENGE_POOL = [
@@ -18,64 +19,133 @@ const CHALLENGE_POOL = [
 
 const factory: DemoFactory = (api) => {
   const { stage } = api;
-  stage.camera.position.set(0, 1.8, 6.2);
+  stage.focusOn([0, 1.5, 5.8], [0, 0, 0], true);
   stage.setShadow(-1.45, 5.5, 3.2);
 
-  // בניית 8 עצמים תלת-ממדיים שלאורך מסלול הזום כל אחד מופיע בקנה המידה שלו
-  const nodes = SCALE_ITEMS.map((item, idx) => {
+  let h1Ref: THREE.Object3D | null = null;
+  let h2Ref: THREE.Object3D | null = null;
+  let flagRef: THREE.Object3D | null = null;
+
+  const nodes = SCALE_ITEMS.map((item) => {
     const g = new THREE.Group();
     if (item.id === 'molecule') {
-      const o = inked(new THREE.SphereGeometry(0.45, 24, 16), { color: '#d96a5b', outline: 0.02 });
-      const h1 = inked(new THREE.SphereGeometry(0.28, 20, 14), { color: '#9cc0de', outline: 0.018 });
-      const h2 = inked(new THREE.SphereGeometry(0.28, 20, 14), { color: '#9cc0de', outline: 0.018 });
-      h1.group.position.set(0.48, 0.32, 0);
-      h2.group.position.set(-0.48, 0.32, 0);
-      g.add(o.group, h1.group, h2.group);
+      // מולקולת H₂O עם קשרים אלסטיים רוטטים וענן אלקטרונים עדין
+      const cloud = inked(new THREE.SphereGeometry(0.75, 24, 18), { color: '#9cc0de', opacity: 0.18, rim: 0.7, wobble: 0.04 });
+      const o = inked(new THREE.SphereGeometry(0.42, 28, 20), { color: '#d96a5b', outline: 0.02, wobble: 0.02, gloss: 0.85 });
+      const h1 = inked(new THREE.SphereGeometry(0.26, 22, 16), { color: '#9cc0de', outline: 0.018, gloss: 0.8 });
+      const h2 = inked(new THREE.SphereGeometry(0.26, 22, 16), { color: '#9cc0de', outline: 0.018, gloss: 0.8 });
+      h1.group.position.set(0.52, 0.36, 0);
+      h2.group.position.set(-0.52, 0.36, 0);
+      h1Ref = h1.group; h2Ref = h2.group;
+      const b1 = organicTube([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.52, 0.36, 0)], 0.06, { color: '#e6decb', wobble: 0.005 });
+      const b2 = organicTube([new THREE.Vector3(0, 0, 0), new THREE.Vector3(-0.52, 0.36, 0)], 0.06, { color: '#e6decb', wobble: 0.005 });
+      g.add(cloud.group, o.group, h1.group, h2.group, b1.group, b2.group);
     } else if (item.id === 'ribosome') {
-      const big = inked(new THREE.SphereGeometry(0.55, 24, 18), { color: '#d8b26e', outline: 0.02 });
-      big.group.scale.set(1.15, 0.85, 0.95);
-      const small = inked(new THREE.SphereGeometry(0.38, 22, 16), { color: '#e6c98a', outline: 0.018 });
-      small.group.position.set(0, 0.48, 0.12);
-      small.group.scale.set(1.1, 0.7, 0.9);
-      g.add(big.group, small.group);
+      // ריבוזום דו-יחידתי (60S + 40S) שמתרגם סרט mRNA ומוציא שרשרת פוליפפטידית
+      const big = inked(new THREE.SphereGeometry(0.52, 28, 20), { color: '#d8b26e', outline: 0.02, wobble: 0.035, wobbleFreq: 3.5 });
+      big.group.scale.set(1.2, 0.88, 0.98);
+      const small = inked(new THREE.SphereGeometry(0.38, 24, 18), { color: '#e6c98a', outline: 0.018, wobble: 0.03, wobbleFreq: 3.8 });
+      small.group.position.set(0.05, 0.46, 0.14);
+      small.group.scale.set(1.12, 0.72, 0.9);
+      const mrna = organicTube([
+        new THREE.Vector3(-0.95, 0.18, 0.2),
+        new THREE.Vector3(-0.3, 0.24, 0.15),
+        new THREE.Vector3(0.3, 0.22, 0.12),
+        new THREE.Vector3(0.95, 0.12, 0.22),
+      ], 0.035, { color: '#9a3b2a', wobble: 0.02 });
+      const peptide = organicTube([
+        new THREE.Vector3(0, -0.1, 0),
+        new THREE.Vector3(-0.18, -0.45, 0.12),
+        new THREE.Vector3(0.12, -0.78, -0.08),
+      ], 0.045, { color: '#6fa3c7', wobble: 0.025 });
+      g.add(big.group, small.group, mrna.group, peptide.group);
     } else if (item.id === 'virus') {
-      const core = inked(new THREE.IcosahedronGeometry(0.62, 0), { color: '#9ab89e', outline: 0.02 });
+      // נגיף שפעת עם קפסיד עשרים-פאון וחלבוני ספייק בולטים
+      const core = inked(new THREE.IcosahedronGeometry(0.56, 1), { color: '#8fb394', outline: 0.02, wobble: 0.02 });
       g.add(core.group);
+      const spikeGeo = new THREE.CylinderGeometry(0.045, 0.02, 0.22, 8);
+      for (let k = 0; k < 18; k++) {
+        const phi = Math.acos(1 - (2 * (k + 0.5)) / 18);
+        const theta = Math.PI * (1 + Math.sqrt(5)) * k;
+        const dir = new THREE.Vector3(
+          Math.sin(phi) * Math.cos(theta),
+          Math.cos(phi),
+          Math.sin(phi) * Math.sin(theta),
+        );
+        const sp = inked(spikeGeo, { color: '#9a3b2a', outline: 0.008, wobble: 0.01 });
+        sp.group.position.copy(dir).multiplyScalar(0.64);
+        sp.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+        g.add(sp.group);
+      }
     } else if (item.id === 'bacterium') {
-      const body = inked(new THREE.CapsuleGeometry(0.38, 0.85, 12, 24), { color: '#d7c38a', outline: 0.02 });
+      // חיידק אי-קולי עם קפסולה שקופה למחצה, DNA פנימי ושוטון לולייני
+      const body = inked(new THREE.CapsuleGeometry(0.36, 0.78, 16, 28), { color: '#d7c38a', opacity: 0.72, rim: 0.9, wobble: 0.022 });
       body.group.rotation.z = Math.PI / 2;
-      g.add(body.group);
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 24; i++) {
+        const u = i / 24;
+        pts.push(new THREE.Vector3(0.72 + u * 1.1, Math.sin(u * Math.PI * 4) * 0.16, Math.cos(u * Math.PI * 4) * 0.16));
+      }
+      const flag = organicTube(pts, 0.022, { color: '#1c2433', wobble: 0.02 });
+      flagRef = flag.group;
+      g.add(body.group, flag.group);
     } else if (item.id === 'rbc') {
-      const rbc = inked(new THREE.TorusGeometry(0.55, 0.26, 18, 36), { color: '#d26a5c', outline: 0.02 });
-      rbc.group.rotation.x = 0.9;
+      // תא דם אדום בצורת דיסקה דו-קעורה אמיתית (Evans & Fung)
+      const geo = new THREE.SphereGeometry(0.75, 48, 32);
+      const p = geo.attributes.position.array as Float32Array;
+      for (let i = 0; i < p.length; i += 3) {
+        const x = p[i] / 0.75, y = p[i + 1] / 0.75, z = p[i + 2] / 0.75;
+        const r2 = x * x + z * z;
+        const hd = 0.72 * Math.sqrt(Math.max(0, 1 - r2)) * (0.21 + 2.0 * r2 - 1.12 * r2 * r2);
+        p[i + 1] = Math.sign(y) * hd * 0.75;
+      }
+      geo.computeVertexNormals();
+      const rbc = inked(geo, { color: '#d25f52', outline: 0.02, wobble: 0.022, subsurface: 1.0, gloss: 0.7 });
+      rbc.group.rotation.x = 0.65;
       g.add(rbc.group);
     } else if (item.id === 'plant') {
-      const box = inked(new THREE.BoxGeometry(1.45, 0.95, 0.9), { color: '#a7bd84', opacity: 0.45, rim: 0.9 });
-      const nuc = inked(new THREE.SphereGeometry(0.22, 20, 14), { color: '#c7a4c9', outline: 0.015 });
-      nuc.group.position.set(-0.35, 0.1, 0);
-      g.add(box.group, nuc.group);
+      const wall = inked(new THREE.BoxGeometry(1.38, 0.92, 0.88), { color: '#a7bd84', opacity: 0.35, rim: 0.92, wobble: 0.008 });
+      const vac = inked(new THREE.SphereGeometry(0.42, 24, 18), { color: '#9cc0de', opacity: 0.48, rim: 0.85, wobble: 0.025 });
+      vac.group.scale.set(1.25, 0.85, 0.85);
+      vac.group.position.set(0.12, 0, 0);
+      const nuc = inked(new THREE.SphereGeometry(0.2, 22, 16), { color: '#c7a4c9', outline: 0.014, wobble: 0.018 });
+      nuc.group.position.set(-0.42, 0.14, 0.1);
+      g.add(wall.group, vac.group, nuc.group);
     } else if (item.id === 'ovum') {
-      const egg = inked(new THREE.SphereGeometry(0.82, 28, 20), { color: '#ecd5a6', opacity: 0.55, rim: 0.9 });
-      const nuc = inked(new THREE.SphereGeometry(0.26, 20, 14), { color: '#c7a4c9', outline: 0.016 });
-      g.add(egg.group, nuc.group);
+      const zona = inked(new THREE.SphereGeometry(0.88, 32, 22), { color: '#f2dfb3', opacity: 0.32, rim: 0.92, wobble: 0.025 });
+      const egg = inked(new THREE.SphereGeometry(0.72, 32, 22), { color: '#e8c48e', opacity: 0.78, rim: 0.85, wobble: 0.02 });
+      const nuc = inked(new THREE.SphereGeometry(0.24, 22, 16), { color: '#c7a4c9', outline: 0.015 });
+      nuc.group.position.set(0.12, 0.08, 0.1);
+      g.add(zona.group, egg.group, nuc.group);
     } else {
-      const palm = inked(new THREE.BoxGeometry(1.1, 0.25, 1.3), { color: '#e3bfa3', outline: 0.02 });
+      // כף יד תלת-ממדית עם חמש אצבעות
+      const palm = inked(new THREE.BoxGeometry(0.85, 0.2, 0.9), { color: '#e3bfa3', outline: 0.018, wobble: 0.01 });
+      palm.group.position.z = 0.2;
       g.add(palm.group);
+      [-0.32, -0.11, 0.11, 0.32].forEach((x, fi) => {
+        const len = 0.58 - Math.abs(fi - 1.5) * 0.07;
+        const f = inked(new THREE.CapsuleGeometry(0.085, len, 8, 14), { color: '#e3bfa3', outline: 0.014, wobble: 0.008 });
+        f.group.rotation.x = Math.PI / 2;
+        f.group.position.set(x, 0, -0.45 - len * 0.35);
+        g.add(f.group);
+      });
+      const thumb = inked(new THREE.CapsuleGeometry(0.09, 0.42, 8, 14), { color: '#e3bfa3', outline: 0.014, wobble: 0.008 });
+      thumb.group.rotation.z = 0.8;
+      thumb.group.position.set(0.58, 0, 0.15);
+      g.add(thumb.group);
     }
-    // טבעת קנה-מידה מצוירת בדיו סביב כל עצם
+
     const ring: number[] = [];
     for (let a = 0; a < 48; a++) {
       const t0 = (a / 48) * Math.PI * 2, t1 = ((a + 1) / 48) * Math.PI * 2;
       ring.push(Math.cos(t0) * 1.25, -0.85, Math.sin(t0) * 1.25, Math.cos(t1) * 1.25, -0.85, Math.sin(t1) * 1.25);
     }
     g.add(sketchLines(ring, 0.01));
-    g.userData.idx = idx;
     stage.add(g);
     return g;
   });
 
-  let zoomExp = 5;        // log10(um): מ-5 (כף יד) עד -3.5 (מולקולה)
-  let zoomTarget = 5;
+  const zoomSpring = new SpringScalar(5, 5, 14, 5.8);
   let pickedOrder: string[] = [];
   let met = false, disposed = false;
 
@@ -92,7 +162,7 @@ const factory: DemoFactory = (api) => {
   function nearestItem() {
     let best = SCALE_ITEMS[0], dBest = Infinity;
     for (const it of SCALE_ITEMS) {
-      const d = Math.abs(it.exp - zoomExp);
+      const d = Math.abs(it.exp - zoomSpring.x);
       if (d < dBest) { dBest = d; best = it; }
     }
     return best;
@@ -102,32 +172,38 @@ const factory: DemoFactory = (api) => {
     const it = nearestItem();
     badge.innerHTML = `<b>${it.name}</b> · קנה מידה: <bdi>${it.display}</bdi>`;
     status.innerHTML = it.hint;
-    const norm = (zoomExp - (-3.5)) / (5 - (-3.5));
+    const norm = (zoomSpring.x - (-3.5)) / (5 - (-3.5));
     api.jars.set('scale', norm, it.display);
-    api.jars.set('rel', norm, `10^${Math.round(zoomExp - 5)}`);
+    api.jars.set('rel', norm, `10^${Math.round(zoomSpring.x - 5)}`);
     api.jars.set('done', pickedOrder.length / CHALLENGE_POOL.length, `${pickedOrder.length}/${CHALLENGE_POOL.length}`);
   }
 
   stage.onTick((dt, t) => {
     if (disposed || dt <= 0) return;
-    zoomExp += (zoomTarget - zoomExp) * Math.min(1, dt * 4);
+    const zoomExp = zoomSpring.step(Math.min(0.05, dt));
+    if (h1Ref && h2Ref) {
+      const vib = Math.sin(t * 7) * 0.04;
+      h1Ref.position.set(0.52 + vib, 0.36 - vib * 0.5, 0);
+      h2Ref.position.set(-0.52 - vib, 0.36 - vib * 0.5, 0);
+    }
+    if (flagRef) flagRef.rotation.x = t * 9;
+
     nodes.forEach((g, idx) => {
       const item = SCALE_ITEMS[idx];
       const diff = item.exp - zoomExp;
       const dist = Math.abs(diff);
-      g.visible = dist < 2.2;
+      g.visible = dist < 2.3;
       if (!g.visible) return;
-      const s = Math.pow(2.1, -diff);
-      const clamped = Math.max(0.05, Math.min(2.3, s));
+      const s = Math.pow(2.15, -diff);
+      const clamped = Math.max(0.04, Math.min(2.35, s));
       g.scale.setScalar(clamped);
-      g.position.z = diff * 1.1;
-      g.position.y = Math.sin(t * 1.4 + idx) * 0.06;
-      g.rotation.y = t * 0.45 + idx * 0.5;
+      g.position.z = diff * 1.15;
+      g.position.y = Math.sin(t * 1.5 + idx) * 0.08;
+      g.rotation.y = t * 0.48 + idx * 0.5;
     });
     updateHud();
   });
 
-  // פקדי "נסה בעצמך": מחוון זום + אתגר סידור מהקטן לגדול
   const shuffled = [CHALLENGE_POOL[3], CHALLENGE_POOL[0], CHALLENGE_POOL[4], CHALLENGE_POOL[1], CHALLENGE_POOL[2]];
   api.controls.innerHTML = `
     <label class="slider" style="flex:1 1 100%">
@@ -156,7 +232,7 @@ const factory: DemoFactory = (api) => {
         if (pickedOrder.includes(item.id)) return;
         const expected = CHALLENGE_POOL[pickedOrder.length];
         const scaleIt = SCALE_ITEMS.find((s) => s.id === item.id);
-        if (scaleIt) { zoomTarget = scaleIt.exp; range.value = String(zoomTarget); }
+        if (scaleIt) { zoomSpring.target = scaleIt.exp; range.value = String(scaleIt.exp); }
         if (item.id === expected.id) {
           pickedOrder.push(item.id);
           renderPicks();
@@ -176,7 +252,7 @@ const factory: DemoFactory = (api) => {
   renderPicks();
 
   range.addEventListener('input', () => {
-    zoomTarget = parseFloat(range.value);
+    zoomSpring.target = parseFloat(range.value);
     const it = nearestItem();
     out.innerHTML = `<bdi>${it.display}</bdi>`;
   });
@@ -191,17 +267,20 @@ const factory: DemoFactory = (api) => {
   return {
     async playStep(i) {
       stage.controls.enabled = false;
-      zoomTarget = stepTargets[i] ?? 0.9;
+      zoomSpring.target = stepTargets[i] ?? 0.9;
+      stage.focusOn([Math.sin(i) * 0.6, 1.45, 5.5], [0, 0, 0]);
       await stage.wait(3200);
     },
     enterTry() {
       stage.controls.enabled = true;
-      zoomTarget = 0.9;
+      zoomSpring.target = 0.9;
       range.value = '0.9';
+      stage.focusOn([0, 1.5, 5.8], [0, 0, 0]);
     },
     enterDemo() {
       stage.controls.enabled = false;
-      zoomTarget = 5;
+      zoomSpring.target = 5;
+      stage.focusOn([0, 1.5, 5.8], [0, 0, 0]);
     },
     dispose() {
       disposed = true;

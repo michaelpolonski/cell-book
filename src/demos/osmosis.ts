@@ -34,7 +34,7 @@ const factory: DemoFactory = (api) => {
   const { stage } = api;
   const rnd = mulberry32(7);
   const gauss = () => (rnd() + rnd() + rnd() - 1.5) * 1.15;
-  stage.camera.position.set(0, 2.5, 6.6);
+  stage.focusOn([0, 2.5, 6.6], [0, 0, 0], true);
   stage.setShadow(-TANK.y - 0.02, 6.4, 3.6);
 
   // ---------- המיכל ----------
@@ -55,34 +55,46 @@ const factory: DemoFactory = (api) => {
   tank.add(liquid.group);
   stage.add(tank);
 
-  // ---------- תא דם אדום ----------
+  // ---------- תא דם אדום (פיזור תת-משטחי וגליות ביולוגית חיה) ----------
   const sphere = new THREE.SphereGeometry(1, 72, 48);
   const unit = (sphere.attributes.position.array as Float32Array).slice();
   const animalGeo = sphere;
-  const animal = inked(animalGeo, { color: '#d26a5c', opacity: 0.4, hatch: 0.9, rim: 1 });
+  const animal = inked(animalGeo, {
+    color: '#d2584a', opacity: 0.48, hatch: 0.75, rim: 1, subsurface: 0.95, gloss: 0.65, wobble: 0.015, wobbleFreq: 3.2,
+  });
   animal.mesh.renderOrder = 3;
   stage.add(animal.group);
 
   // ---------- תא צמח ----------
   const plant = new THREE.Group();
-  const wallBody = inked(new THREE.BoxGeometry(PLANT_W.x * 2, PLANT_W.y * 2, PLANT_W.z * 2), { color: '#a7bd84', opacity: 0.14, hatch: 0.5 });
+  const wallBody = inked(new THREE.BoxGeometry(PLANT_W.x * 2, PLANT_W.y * 2, PLANT_W.z * 2), {
+    color: '#a7bd84', opacity: 0.16, hatch: 0.45, subsurface: 0.85,
+  });
   wallBody.mesh.renderOrder = 3;
   plant.add(wallBody.group);
   const wx = PLANT_W.x, wy = PLANT_W.y, wz = PLANT_W.z;
   plant.add(sketchLines(box(wx, -wy, wy, wz), 0.014, '#3f5a2a', 0.9));
   plant.add(sketchLines(box(wx * 0.965, -wy * 0.94, wy * 0.94, wz * 0.95), 0.01, '#3f5a2a', 0.55));
   const membraneGeo = new THREE.SphereGeometry(1, 64, 40);
-  const membrane = inked(membraneGeo, { color: '#b8cf8c', opacity: 0.38, hatch: 0.8, rim: 1 });
+  const membrane = inked(membraneGeo, {
+    color: '#b8cf8c', opacity: 0.4, hatch: 0.7, rim: 1, subsurface: 0.9, gloss: 0.6, wobble: 0.012, wobbleFreq: 2.8,
+  });
   membrane.mesh.renderOrder = 4;
   plant.add(membrane.group);
-  const vacuole = inked(new THREE.SphereGeometry(1, 40, 28), { color: '#cfe0ea', opacity: 0.3, hatch: 0.5, rim: 0.8 });
+  const vacuole = inked(new THREE.SphereGeometry(1, 40, 28), {
+    color: '#98c6e3', opacity: 0.36, hatch: 0.4, rim: 0.85, subsurface: 0.95, gloss: 0.7, wobble: 0.014,
+  });
   vacuole.mesh.renderOrder = 5;
   plant.add(vacuole.group);
-  const nucleus = inked(new THREE.SphereGeometry(0.17, 24, 16), { color: '#c7a4c9', outline: 0.012 });
+  const nucleus = inked(new THREE.SphereGeometry(0.17, 24, 16), {
+    color: '#c7a4c9', outline: 0.012, subsurface: 0.85, gloss: 0.55,
+  });
   plant.add(nucleus.group);
   const chloroDirs = Array.from({ length: 8 }, () => new THREE.Vector3(gauss(), gauss() * 0.6, gauss()).normalize());
   const chloros = chloroDirs.map(() => {
-    const c = inked(new THREE.SphereGeometry(1, 16, 10), { color: '#6f9a45', outline: 0.01 });
+    const c = inked(new THREE.SphereGeometry(1, 16, 10), {
+      color: '#5f9440', outline: 0.01, subsurface: 0.85, gloss: 0.55,
+    });
     c.group.scale.set(0.13, 0.06, 0.085);
     c.group.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
     plant.add(c.group);
@@ -276,7 +288,6 @@ const factory: DemoFactory = (api) => {
 
   stage.onTick((dt) => {
     if (disposed || dt <= 0) return;
-    // הריכוז בחוץ זז בעדינות אל היעד (כאילו מוסיפים מלח או מים)
     const dc = cOutTarget - cOut;
     cOut += Math.sign(dc) * Math.min(Math.abs(dc), 1.6 * dt);
 
@@ -285,7 +296,6 @@ const factory: DemoFactory = (api) => {
     if (cell.burst && !wasBurst) burst();
     if (!cell.burst) reshape();
 
-    // מעבר מים: מספר המולקולות בפנים עוקב אחרי הנפח
     const busy = crossingSet();
     if (!cell.burst) {
       crossT += dt;
@@ -328,7 +338,6 @@ const factory: DemoFactory = (api) => {
     water.mesh.instanceMatrix.needsUpdate = true;
     water.mesh.instanceColor!.needsUpdate = true;
 
-    // מומס: בחוץ מוצגות כמה מולקולות שמתאימות לריכוז
     const nOut = Math.round((cOut / 3) * SOLUTE_OUT_MAX);
     let outIdx = 0;
     for (let i = 0; i < SOLUTE_N; i++) {
@@ -346,7 +355,6 @@ const factory: DemoFactory = (api) => {
     }
     solute.mesh.instanceMatrix.needsUpdate = true;
 
-    // שברי קרום
     for (const f of fragments) {
       f.life -= dt;
       f.obj.position.addScaledVector(f.v, dt);
@@ -356,7 +364,6 @@ const factory: DemoFactory = (api) => {
     }
     fragments = fragments.filter((f) => { if (f.life > 0) return true; stage.root.remove(f.obj); return false; });
 
-    // האתגר
     if (mode === 'try' && !met) {
       const ok = cell.type === 'animal' && !cell.burst && Math.abs(cell.V - 1) < 0.03 && Math.abs(cOut - O.ISOTONIC) <= 0.06;
       hold = ok ? hold + dt : Math.max(0, hold - dt * 2);
@@ -435,26 +442,31 @@ const factory: DemoFactory = (api) => {
       stage.controls.enabled = false;
       switch (i) {
         case 0:
+          stage.focusOn([0, 2.5, 6.4], [0, 0, 0]);
           newCell('animal'); cOut = cOutTarget = O.ISOTONIC; exchangeEvery = 1.1;
           await stage.wait(4200);
           break;
         case 1:
+          stage.focusOn([0.4, 1.8, 4.9], [0, 0, 0]);
           if (cell.burst) newCell('animal');
           cOut = cOutTarget = O.ISOTONIC; exchangeEvery = 0.22;
           await stage.wait(5000);
           exchangeEvery = 1.1;
           break;
         case 2:
+          stage.focusOn([0, 2.1, 5.5], [0, 0, 0]);
           if (cell.burst || cell.V < 0.95) newCell('animal');
           cOutTarget = 0;
           await until(() => cell.V > 1.3 || cell.burst, 6000);
           break;
         case 3:
+          stage.focusOn([0, 2.2, 5.8], [0, 0, 0]);
           cOutTarget = 0;
           await until(() => cell.burst, 5000);
           await stage.wait(2600);
           break;
         case 4:
+          stage.focusOn([-0.4, 2.1, 5.5], [0, 0, 0]);
           newCell('animal'); cOut = O.ISOTONIC; cOutTarget = 2.5;
           await stage.wait(5200);
           break;
@@ -463,6 +475,7 @@ const factory: DemoFactory = (api) => {
     enterTry() {
       mode = 'try';
       exchangeEvery = 1.1;
+      stage.focusOn([0, 2.5, 6.6], [0, 0, 0]);
       segBtns.forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.type === 'animal')));
       newCell('animal');
       cOut = cOutTarget = 2.0;
@@ -472,6 +485,7 @@ const factory: DemoFactory = (api) => {
     enterDemo() {
       mode = 'demo';
       stage.controls.enabled = false;
+      stage.focusOn([0, 2.5, 6.4], [0, 0, 0]);
       newCell('animal');
       cOut = cOutTarget = O.ISOTONIC;
     },

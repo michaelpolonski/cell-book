@@ -1,11 +1,11 @@
 /**
  * שיעור 3: תא פרוקריוטי ותא אאוקריוטי.
- * חיידק (פרוקריוט) לצד תא אאוקריוטי בתלת-ממד, עם מצב חתך (cutaway)
- * ואתגר מיון של 6 מבנים: חיידק בלבד / שניהם / אאוקריוט בלבד.
+ * השוואה תלת-ממדית קולנועית בין חיידק (עם שוטון מסתובב, ריסים, נוקלאואיד מפותל ופלסמיד)
+ * לבין תא אאוקריוטי (גרעין, רשתית תוך-פלזמית, גולג׳י ומיטוכונדריה), עם מעברי מצלמה.
  */
 import * as THREE from 'three';
 import type { DemoFactory } from './types';
-import { inked, sketchLines } from '../render/ink';
+import { inked, organicTube } from '../render/ink';
 
 interface Item { id: string; name: string; group: 'prok' | 'both' | 'euk' }
 
@@ -20,51 +20,63 @@ const ITEMS: Item[] = [
 
 const factory: DemoFactory = (api) => {
   const { stage } = api;
-  stage.camera.position.set(0, 2.2, 6.5);
+  stage.focusOn([0, 2.1, 6.4], [0, 0, 0], true);
   stage.setShadow(-1.4, 5.8, 3.2);
 
   // ---------- צד ימין: חיידק (פרוקריוט) ----------
   const prok = new THREE.Group();
   prok.position.set(1.55, 0, 0);
-  const pShell = inked(new THREE.CapsuleGeometry(0.58, 0.95, 16, 28), { color: '#d9c48c', opacity: 0.42, rim: 0.95 });
+  const pShell = inked(new THREE.CapsuleGeometry(0.56, 0.92, 20, 32), {
+    color: '#d9c48c', opacity: 0.36, rim: 0.95, wobble: 0.02, subsurface: 0.9,
+  });
   pShell.group.rotation.z = Math.PI / 2;
-  // DNA מעגלי חופשי בציטופלזמה (נוקלאואיד)
-  const loopPts: number[] = [];
-  for (let i = 0; i < 64; i++) {
-    const a0 = (i / 64) * Math.PI * 2, a1 = ((i + 1) / 64) * Math.PI * 2;
-    loopPts.push(
-      Math.cos(a0) * 0.45, Math.sin(a0 * 3) * 0.16, Math.sin(a0) * 0.25,
-      Math.cos(a1) * 0.45, Math.sin(a1 * 3) * 0.16, Math.sin(a1) * 0.25,
-    );
+
+  // נוקלאואיד תלת-ממדי מפותל בתוך הציטופלזמה של החיידק
+  const nucPts: THREE.Vector3[] = [];
+  for (let i = 0; i <= 40; i++) {
+    const a = (i / 40) * Math.PI * 2;
+    nucPts.push(new THREE.Vector3(Math.cos(a) * 0.42, Math.sin(a * 3) * 0.16, Math.sin(a * 2) * 0.22));
   }
-  const nucleoid = sketchLines(loopPts, 0.012, '#9a3b2a');
-  const plasmid = inked(new THREE.TorusGeometry(0.16, 0.03, 10, 24), { color: '#9a3b2a', outline: 0.01 });
+  const nucleoid = organicTube(nucPts, 0.028, { color: '#9a3b2a', closed: true, wobble: 0.015 });
+  const plasmid = inked(new THREE.TorusGeometry(0.15, 0.028, 12, 28), { color: '#9a3b2a', outline: 0.01, wobble: 0.01 });
   plasmid.group.position.set(-0.48, -0.15, 0.18);
-  // שוטון
-  const flagPts: number[] = [];
-  for (let i = 0; i < 28; i++) {
-    const x0 = 1.05 + i * 0.045, x1 = 1.05 + (i + 1) * 0.045;
-    flagPts.push(x0, Math.sin(i * 0.55) * 0.16, 0, x1, Math.sin((i + 1) * 0.55) * 0.16, 0);
+
+  // שוטון לולייני תלת-ממדי שמסתובב סביב צירו
+  const flagPts: THREE.Vector3[] = [];
+  for (let i = 0; i <= 28; i++) {
+    const u = i / 28;
+    flagPts.push(new THREE.Vector3(1.0 + u * 1.15, Math.sin(u * Math.PI * 4) * 0.15, Math.cos(u * Math.PI * 4) * 0.15));
   }
-  const flagellum = sketchLines(flagPts, 0.008, '#1c2433');
-  prok.add(pShell.group, nucleoid, plasmid.group, flagellum);
+  const flagellum = organicTube(flagPts, 0.02, { color: '#1c2433', wobble: 0.01 });
+
+  // ריבוזומים קטנים בציטופלזמה של החיידק
+  const pRibos = new THREE.Group();
+  [[-0.3, 0.2, -0.1], [0.1, -0.22, 0.15], [0.35, 0.18, 0.1], [-0.15, 0.05, -0.22]].forEach(([x, y, z]) => {
+    const r = inked(new THREE.SphereGeometry(0.05, 12, 10), { color: '#d8b26e', outline: 0.008 });
+    r.group.position.set(x, y, z);
+    pRibos.add(r.group);
+  });
+
+  prok.add(pShell.group, nucleoid.group, plasmid.group, flagellum.group, pRibos);
   stage.add(prok);
 
   // ---------- צד שמאל: תא אאוקריוטי ----------
   const euk = new THREE.Group();
   euk.position.set(-1.35, 0, 0);
-  const eShell = inked(new THREE.SphereGeometry(1.18, 36, 26), { color: '#df9b86', opacity: 0.36, rim: 0.95 });
-  const nuc = inked(new THREE.SphereGeometry(0.44, 24, 18), { color: '#c7a4c9', opacity: 0.78, outline: 0.015 });
+  const eShell = inked(new THREE.SphereGeometry(1.18, 40, 28), {
+    color: '#df9b86', opacity: 0.32, rim: 0.95, wobble: 0.026, subsurface: 0.95,
+  });
+  const nuc = inked(new THREE.SphereGeometry(0.44, 28, 20), { color: '#c7a4c9', opacity: 0.78, outline: 0.015, wobble: 0.018 });
   nuc.group.position.set(-0.15, 0.12, 0);
-  const nucleolus = inked(new THREE.SphereGeometry(0.16, 16, 12), { color: '#9a3b2a', outline: 0.01 });
+  const nucleolus = inked(new THREE.SphereGeometry(0.16, 18, 14), { color: '#9a3b2a', outline: 0.01, wobble: 0.01 });
   nucleolus.group.position.set(-0.15, 0.12, 0);
-  const mito1 = inked(new THREE.CapsuleGeometry(0.14, 0.28, 10, 16), { color: '#d98a3d', outline: 0.012 });
+  const mito1 = inked(new THREE.CapsuleGeometry(0.14, 0.28, 12, 18), { color: '#d98a3d', outline: 0.012, wobble: 0.015 });
   mito1.group.position.set(0.52, 0.25, 0.2);
   mito1.group.rotation.z = 0.6;
-  const mito2 = inked(new THREE.CapsuleGeometry(0.13, 0.25, 10, 16), { color: '#d98a3d', outline: 0.012 });
+  const mito2 = inked(new THREE.CapsuleGeometry(0.13, 0.25, 12, 18), { color: '#d98a3d', outline: 0.012, wobble: 0.015 });
   mito2.group.position.set(0.35, -0.45, -0.15);
   mito2.group.rotation.z = -0.5;
-  const er = inked(new THREE.TorusKnotGeometry(0.32, 0.045, 48, 8, 2, 3), { color: '#7fa6cc', outline: 0.01 });
+  const er = inked(new THREE.TorusKnotGeometry(0.32, 0.048, 56, 10, 2, 3), { color: '#7fa6cc', outline: 0.01, wobble: 0.016 });
   er.group.position.set(-0.2, -0.32, 0.25);
   euk.add(eShell.group, nuc.group, nucleolus.group, mito1.group, mito2.group, er.group);
   stage.add(euk);
@@ -103,8 +115,12 @@ const factory: DemoFactory = (api) => {
 
   stage.onTick((dt, t) => {
     if (disposed || dt <= 0) return;
-    prok.rotation.y = Math.sin(t * 0.5) * 0.35;
-    euk.rotation.y = -Math.sin(t * 0.45) * 0.35;
+    prok.rotation.y = Math.sin(t * 0.55) * 0.32;
+    prok.position.y = Math.sin(t * 1.4) * 0.06;
+    flagellum.group.rotation.x = t * 10;
+    plasmid.group.rotation.z = t * 1.2;
+    euk.rotation.y = -Math.sin(t * 0.45) * 0.32;
+    euk.position.y = Math.cos(t * 1.2) * 0.05;
   });
 
   api.controls.innerHTML = `
@@ -156,18 +172,23 @@ const factory: DemoFactory = (api) => {
       stage.controls.enabled = false;
       cutaway = i >= 1;
       syncCutaway();
+      if (i === 2) stage.focusOn([1.3, 1.4, 4.4], [1.4, 0, 0]);
+      else if (i === 3) stage.focusOn([-1.2, 1.4, 4.4], [-1.3, 0, 0]);
+      else stage.focusOn([0, 2.1, 6.4], [0, 0, 0]);
       await stage.wait(3000);
     },
     enterTry() {
       stage.controls.enabled = true;
       cutaway = true;
       syncCutaway();
+      stage.focusOn([0, 2.1, 6.4], [0, 0, 0]);
       updateHud();
     },
     enterDemo() {
       stage.controls.enabled = false;
       cutaway = true;
       syncCutaway();
+      stage.focusOn([0, 2.1, 6.4], [0, 0, 0]);
     },
     dispose() {
       disposed = true;
