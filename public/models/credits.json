@@ -1,1 +1,101 @@
-[]
+[
+  {
+    "id": "microscope",
+    "uid": "9562226299a045bab13c3d66f8593208",
+    "name": "Microscope",
+    "author": "Eugen Vahrushin",
+    "authorUrl": "https://sketchfab.com/eugen_vahrushin",
+    "url": "https://sketchfab.com/3d-models/microscope-9562226299a045bab13c3d66f8593208",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעור 2 – המיקרוסקופ"
+  },
+  {
+    "id": "virus",
+    "uid": "9b791066661241bfbf37327fa9cbd473",
+    "name": "Corona Virus COVID-19",
+    "author": "Fantom Matter",
+    "authorUrl": "https://sketchfab.com/aqpetteri",
+    "url": "https://sketchfab.com/3d-models/corona-virus-covid-19-9b791066661241bfbf37327fa9cbd473",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעור 1 – סדרי גודל (נגיף)"
+  },
+  {
+    "id": "rbc",
+    "uid": "657f7b34ab2e43878c4f366e3e940ebd",
+    "name": "Red Blood Cells (Erythrocytes)",
+    "author": "_Bonehead14",
+    "authorUrl": "https://sketchfab.com/_Bonehead14",
+    "url": "https://sketchfab.com/3d-models/red-blood-cells-erythrocytes-657f7b34ab2e43878c4f366e3e940ebd",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעור 1 – סדרי גודל (תא דם אדום)"
+  },
+  {
+    "id": "mitochondria",
+    "uid": "7445a425050e49daa881070ca6917a91",
+    "name": "Mitochondria",
+    "author": "brianj.seely",
+    "authorUrl": "https://sketchfab.com/brianj.seely",
+    "url": "https://sketchfab.com/3d-models/mitochondria-7445a425050e49daa881070ca6917a91",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעורים 4, 11 – מיטוכונדריה"
+  },
+  {
+    "id": "lysosome",
+    "uid": "6bd2957542ae4625aa0dcd180d979f9b",
+    "name": "Lysosome",
+    "author": "arloopa",
+    "authorUrl": "https://sketchfab.com/arloopa",
+    "url": "https://sketchfab.com/3d-models/lysosome-6bd2957542ae4625aa0dcd180d979f9b",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעור 4 – ליזוזום"
+  },
+  {
+    "id": "chloroplast",
+    "uid": "30bc55b2f763415f9222f876c564be97",
+    "name": "Chloroplast",
+    "author": "arloopa",
+    "authorUrl": "https://sketchfab.com/arloopa",
+    "url": "https://sketchfab.com/3d-models/chloroplast-30bc55b2f763415f9222f876c564be97",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעורים 4, 11 – כלורופלסט"
+  },
+  {
+    "id": "glucose",
+    "uid": "f044c0a2bb3f4d3ba1923c27ab4c5e8d",
+    "name": "D-Glucose",
+    "author": "arloopa",
+    "authorUrl": "https://sketchfab.com/arloopa",
+    "url": "https://sketchfab.com/3d-models/d-glucose-f044c0a2bb3f4d3ba1923c27ab4c5e8d",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעורים 6, 10 – גלוקוז"
+  },
+  {
+    "id": "atp",
+    "uid": "0b6a3a0c5e6d4d05aaf7737cdadc0d35",
+    "name": "Adenosine Triphosphate",
+    "author": "Georgio Nassar",
+    "authorUrl": "https://sketchfab.com/Georgio.Nassar",
+    "url": "https://sketchfab.com/3d-models/adenosine-triphosphate-0b6a3a0c5e6d4d05aaf7737cdadc0d35",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעורים 8, 11 – ATP"
+  },
+  {
+    "id": "atp-synthase",
+    "uid": "383c8b524a8d4c7b949ec8d4ff6610a9",
+    "name": "ATP Synthase",
+    "author": "Vera4Art",
+    "authorUrl": "https://sketchfab.com/Elvera.Viljoen",
+    "url": "https://sketchfab.com/3d-models/atp-synthase-383c8b524a8d4c7b949ec8d4ff6610a9",
+    "license": "CC Attribution",
+    "licenseUrl": "http://creativecommons.org/licenses/by/4.0/",
+    "usedIn": "שיעור 11 – ATP סינתאז (מונפש)"
+  }
+]

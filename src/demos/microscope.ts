@@ -48,7 +48,7 @@ const factory: DemoFactory = (api) => {
   scope.add(body, lampGlow.group, slide.group);
   stage.add(scope);
   // מודל מיקרוסקופ אמיתי מ-Sketchfab (אם הורד), בצביעת דיו
-  upgrade(stage, body, 'microscope', { size: 2.7, offset: [0, 0.05, 0], rotation: [0, -0.6, 0], hatch: 0.75, gloss: 0.7, subsurface: 0.2 });
+  upgrade(stage, body, 'microscope', { size: 2.9, offset: [0, 0.1, 0], rotation: [0, -0.7, 0], tint: '#d9d2c3', hatch: 0.8, gloss: 0.75, subsurface: 0.15 });
 
   // שדה ראייה עגול בצד שמאל עם זרימה ציטופלזמית (ציקלוזיס) בתוך תאי הבצל
   const field = new THREE.Group();

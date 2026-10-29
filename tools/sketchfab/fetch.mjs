@@ -8,13 +8,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
+const ROOT = path.resolve(HERE, '../..');
 const OUT = path.join(ROOT, 'public/models');
 const TMP = path.join(ROOT, '.sketchfab-cache');
 const TOKEN = process.env.SKETCHFAB_TOKEN;
 if (!TOKEN) { console.error('Set SKETCHFAB_TOKEN'); process.exit(1); }
-const list = JSON.parse(fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'models.json'), 'utf8'));
+const list = JSON.parse(fs.readFileSync(path.join(HERE, 'models.json'), 'utf8'));
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(TMP, { recursive: true });
 const OK = new Set(['by', 'by-sa', 'cc0']);

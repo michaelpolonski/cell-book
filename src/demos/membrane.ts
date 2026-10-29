@@ -6,6 +6,7 @@
  */
 import * as THREE from 'three';
 import type { DemoFactory } from './types';
+import { upgrade } from '../render/models';
 import { inked, inkedInstances, sketchLines } from '../render/ink';
 
 interface Probe {
@@ -111,6 +112,21 @@ const factory: DemoFactory = (api) => {
   });
   ball.group.position.set(0.92, 1.2, 0);
   stage.add(ball.group);
+  // מולקולת גלוקוז אמיתית (מודל מ-Sketchfab) כשבודקים גלוקוז
+  const glucoseSlot = new THREE.Group();
+  ball.group.add(glucoseSlot);
+  let glucoseModel: THREE.Object3D | null = null;
+  upgrade(stage, glucoseSlot, 'glucose', { size: 0.5, gloss: 0.8, subsurface: 0.6 }).then((m) => {
+    if (!m) return;
+    glucoseModel = m.group;
+    syncGlucose();
+  });
+  const syncGlucose = () => {
+    const g = curProbe.id === 'glucose' && !!glucoseModel;
+    ball.mesh.visible = !g;
+    if (ball.outline) ball.outline.visible = !g;
+    glucoseSlot.visible = g;
+  };
 
   let curProbe = PROBES[0];
   let animT = 0;
@@ -132,6 +148,7 @@ const factory: DemoFactory = (api) => {
     curProbe = p;
     animT = 0;
     (ball.mesh.material as THREE.ShaderMaterial).uniforms.uColor.value.set(p.color);
+    syncGlucose();
     badge.innerHTML = `נבדק: <b>${p.label}</b>`;
     status.innerHTML = p.wayHe;
     api.jars.set('tested', tested.size / PROBES.length, `${tested.size}/${PROBES.length}`);

@@ -56,7 +56,7 @@ const factory: DemoFactory = (api) => {
   stage.add(mito);
   const mitoSlot = new THREE.Group();
   mito.add(mitoSlot);
-  upgrade(stage, mitoSlot, 'mitochondria', { size: 2.1, rotation: [0.3, 0, 0], subsurface: 0.9, gloss: 0.65 }).then((m) => {
+  upgrade(stage, mitoSlot, 'mitochondria', { size: 1.75, rotation: [0.3, 0, 0], subsurface: 0.9, gloss: 0.65 }).then((m) => {
     if (!m) return;
     mShell.group.visible = cristae.group.visible = false;
     mitoSlot.children.forEach((c) => (c.visible = c === m.group));
@@ -64,12 +64,17 @@ const factory: DemoFactory = (api) => {
   });
   const chloroSlot = new THREE.Group();
   chloro.add(chloroSlot);
-  upgrade(stage, chloroSlot, 'chloroplast', { size: 2.3, subsurface: 0.9, gloss: 0.6 }).then((m) => {
+  upgrade(stage, chloroSlot, 'chloroplast', { size: 1.85, subsurface: 0.9, gloss: 0.6 }).then((m) => {
     if (!m) return;
     chloro.children.forEach((c) => { if (c !== chloroSlot && c !== sunBeam.group) c.visible = false; });
     chloroSlot.children.forEach((c) => (c.visible = c === m.group));
     chloroMats.push(...m.materials);
   });
+  // ATP סינתאז – הטורבינה המולקולרית שמייצרת ATP, מונפשת (מודל מ-Sketchfab)
+  const synthSlot = new THREE.Group();
+  synthSlot.position.set(-1.42, 0.78, 0.35);
+  stage.add(synthSlot);
+  upgrade(stage, synthSlot, 'atp-synthase', { size: 0.62, subsurface: 0.8, gloss: 0.7, glow: 0.08 });
   const mitoMats: THREE.ShaderMaterial[] = [];
   const chloroMats: THREE.ShaderMaterial[] = [];
 

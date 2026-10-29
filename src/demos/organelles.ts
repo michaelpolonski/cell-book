@@ -142,7 +142,7 @@ const factory: DemoFactory = (api) => {
     mg.rotation.z = rot;
     mito.add(mg);
     registerMat('mito', outer.mesh.material as THREE.ShaderMaterial);
-    upgrade(stage, mg, 'mitochondria', { size: 0.62 * s, rotation: [0, 0, Math.PI / 2], subsurface: 0.9, gloss: 0.6 })
+    upgrade(stage, mg, 'mitochondria', { size: 0.78 * s, rotation: [0, 0, Math.PI / 2], subsurface: 0.9, gloss: 0.6 })
       .then((m) => m?.materials.forEach((mat) => registerMat('mito', mat)));
   });
   meshes.mito = mito;

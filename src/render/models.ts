@@ -82,6 +82,10 @@ export async function loadModel(id: string, o: ModelOptions = {}): Promise<Loade
       const t = sampleTextureColor(orig.map);
       if (t) col = t.multiply(orig.color ?? new THREE.Color(1, 1, 1));
     }
+    // משטחי חיתוך שחורים / טקסטורות כהות נראים כמו כתם דיו – מבהירים אותם לגוון "נייר" של הספר
+    const hsl = { h: 0, s: 0, l: 0 };
+    col.getHSL(hsl);
+    if (hsl.l < 0.34) col.setHSL(hsl.h, Math.min(hsl.s, 0.55), 0.34 + hsl.l * 0.4);
     const opacity = o.opacity ?? (orig?.transparent ? Math.max(0.3, orig.opacity) : 1);
     return { col, opacity };
   };
