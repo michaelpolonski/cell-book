@@ -7,6 +7,7 @@
  */
 import * as THREE from 'three';
 import type { DemoFactory } from './types';
+import { upgrade } from '../render/models';
 import { inked, sketchLines, organicTube, mulberry32 } from '../render/ink';
 
 interface OrganelleInfo {
@@ -141,6 +142,8 @@ const factory: DemoFactory = (api) => {
     mg.rotation.z = rot;
     mito.add(mg);
     registerMat('mito', outer.mesh.material as THREE.ShaderMaterial);
+    upgrade(stage, mg, 'mitochondria', { size: 0.62 * s, rotation: [0, 0, Math.PI / 2], subsurface: 0.9, gloss: 0.6 })
+      .then((m) => m?.materials.forEach((mat) => registerMat('mito', mat)));
   });
   meshes.mito = mito;
 
@@ -178,6 +181,14 @@ const factory: DemoFactory = (api) => {
   }
   meshes.lyso = lysoGroup;
   registerMat('lyso', lysoShell.mesh.material as THREE.ShaderMaterial);
+  const lysoSlot = new THREE.Group();
+  lysoGroup.add(lysoSlot);
+  upgrade(stage, lysoSlot, 'lysosome', { size: 0.46, subsurface: 0.9, gloss: 0.65 }).then((m) => {
+    if (!m) return;
+    lysoGroup.children.forEach((c) => { if (c !== lysoSlot) c.visible = false; });
+    lysoSlot.children.forEach((c) => (c.visible = c === m.group));
+    m.materials.forEach((mat) => registerMat('lyso', mat));
+  });
 
   // 5. חלולית מרכזית (תא צמח)
   const vacuole = inked(new THREE.SphereGeometry(0.65, 36, 26), {
@@ -207,6 +218,8 @@ const factory: DemoFactory = (api) => {
     cg.position.set(x, y, z);
     chloro.add(cg);
     registerMat('chloro', cShell.mesh.material as THREE.ShaderMaterial);
+    upgrade(stage, cg, 'chloroplast', { size: 0.62, subsurface: 0.9, gloss: 0.6 })
+      .then((m) => m?.materials.forEach((mat) => registerMat('chloro', mat)));
   });
   meshes.chloro = chloro;
 

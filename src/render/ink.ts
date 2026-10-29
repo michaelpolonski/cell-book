@@ -76,6 +76,7 @@ const fragment = /* glsl */ `
   uniform float uSubsurface;
   uniform float uGloss;
   uniform float uPulse;
+  uniform float uGlow;
   uniform float uTime;
   varying vec3 vN;
   varying vec3 vV;
@@ -135,6 +136,10 @@ const fragment = /* glsl */ `
     // קו מתאר בקצוות לחומרים שקופים למחצה (קרומי תא, שלפוחיות, חלולית)
     float edge = pow(rim, 2.6) * uRim;
     col = mix(col, uInk, edge * 0.82);
+
+    // זוהר (HDR > 1): ה-Bloom של סצנת הספר הופך אותו להילה, כמו האנרגיה הזוהרת ב-Every Joule
+    float glow = uGlow + uPulse * (0.25 + 0.2 * sin(uTime * 5.0));
+    col += base * glow * 1.8;
     gl_FragColor = vec4(col, mix(uOpacity, min(1.0, uOpacity + 0.55), edge));
   }
 `;
@@ -157,6 +162,7 @@ export interface InkOptions {
   subsurface?: number;   // עוצמת פיזור האור התת-עורי (0..1)
   gloss?: number;        // ברק רטוב של רקמה ביולוגית (0..1)
   pulse?: number;        // פעימת הארה לאברון נבחר (0..1)
+  glow?: number;         // זוהר HDR שה-Bloom הופך להילה (0..1)
 }
 
 export function inkMaterial(o: InkOptions = {}): THREE.ShaderMaterial {
@@ -183,6 +189,7 @@ export function inkMaterial(o: InkOptions = {}): THREE.ShaderMaterial {
       uSubsurface: { value: o.subsurface ?? 0.85 },
       uGloss: { value: o.gloss ?? 0.55 },
       uPulse: { value: o.pulse ?? 0 },
+      uGlow: { value: o.glow ?? 0 },
     },
   });
   animatedMaterials.add(mat);

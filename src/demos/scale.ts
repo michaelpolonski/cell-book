@@ -6,6 +6,7 @@
  */
 import * as THREE from 'three';
 import type { DemoFactory } from './types';
+import { upgrade } from '../render/models';
 import { inked, organicTube, sketchLines, SpringScalar } from '../render/ink';
 import { SCALE_ITEMS } from '../sim/models';
 
@@ -61,8 +62,11 @@ const factory: DemoFactory = (api) => {
       g.add(big.group, small.group, mrna.group, peptide.group);
     } else if (item.id === 'virus') {
       // נגיף שפעת עם קפסיד עשרים-פאון וחלבוני ספייק בולטים
+      const vslot = new THREE.Group();
+      g.add(vslot);
       const core = inked(new THREE.IcosahedronGeometry(0.56, 1), { color: '#8fb394', outline: 0.02, wobble: 0.02 });
-      g.add(core.group);
+      vslot.add(core.group);
+      upgrade(stage, vslot, 'virus', { size: 1.55, tint: '#8fb394', subsurface: 0.9, gloss: 0.7, wobble: 0.01 });
       const spikeGeo = new THREE.CylinderGeometry(0.045, 0.02, 0.22, 8);
       for (let k = 0; k < 18; k++) {
         const phi = Math.acos(1 - (2 * (k + 0.5)) / 18);
@@ -75,7 +79,7 @@ const factory: DemoFactory = (api) => {
         const sp = inked(spikeGeo, { color: '#9a3b2a', outline: 0.008, wobble: 0.01 });
         sp.group.position.copy(dir).multiplyScalar(0.64);
         sp.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-        g.add(sp.group);
+        vslot.add(sp.group);
       }
     } else if (item.id === 'bacterium') {
       // חיידק אי-קולי עם קפסולה שקופה למחצה, DNA פנימי ושוטון לולייני
@@ -102,7 +106,10 @@ const factory: DemoFactory = (api) => {
       geo.computeVertexNormals();
       const rbc = inked(geo, { color: '#d25f52', outline: 0.02, wobble: 0.022, subsurface: 1.0, gloss: 0.7 });
       rbc.group.rotation.x = 0.65;
-      g.add(rbc.group);
+      const rslot = new THREE.Group();
+      rslot.add(rbc.group);
+      g.add(rslot);
+      upgrade(stage, rslot, 'rbc', { size: 1.6, rotation: [0.65, 0, 0], tint: '#d25f52', subsurface: 1, gloss: 0.75, wobble: 0.015 });
     } else if (item.id === 'plant') {
       const wall = inked(new THREE.BoxGeometry(1.38, 0.92, 0.88), { color: '#a7bd84', opacity: 0.35, rim: 0.92, wobble: 0.008 });
       const vac = inked(new THREE.SphereGeometry(0.42, 24, 18), { color: '#9cc0de', opacity: 0.48, rim: 0.85, wobble: 0.025 });

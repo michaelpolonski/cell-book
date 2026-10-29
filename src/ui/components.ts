@@ -1,5 +1,6 @@
 /** רכיבי הדף: ניבוי, דש, מילים, חותמת. כל אחד מחזיר אלמנט מוכן. */
 import { glossaryMap } from '../content/glossary';
+import { sound } from '../scene/Sound';
 
 export function h<K extends keyof HTMLElementTagNameMap>(
   tag: K, attrs: Record<string, string> = {}, html = '',
@@ -45,6 +46,7 @@ export function flap(label: string, content: string, opts: { locked?: () => stri
     const reason = opts.locked?.();
     if (reason) { msg.textContent = reason; wrap.classList.add('shake'); setTimeout(() => wrap.classList.remove('shake'), 450); return; }
     msg.textContent = '';
+    sound.play('flap');
     open();
   });
   wrap.append(hidden, btn, msg);

@@ -9,6 +9,8 @@ interface Jar { root: HTMLElement; liquid: SVGRectElement; value: HTMLElement; l
 const JAR_PATH = 'M17 5h26v7c9 4 12 11 12 19v39q0 7-7 7H12q-7 0-7-7V31c0-8 3-15 12-19z';
 
 export class Jars {
+  /** כשסצנת ה-WebGL פעילה, הנוזל מצויר בה (זוהר + Bloom) ו-SVG מצייר רק את הזכוכית. */
+  static glow = false;
   readonly el: HTMLElement;
   private jars = new Map<string, Jar>();
   private raf = 0;
@@ -42,6 +44,10 @@ export class Jars {
       </svg>
       <figcaption><span class="jar-label">${label}</span><bdi class="jar-value"></bdi></figcaption>`;
     this.el.appendChild(root);
+    const svg = root.querySelector('svg')!;
+    svg.dataset.color = color;
+    svg.dataset.level = '0';
+    if (Jars.glow) root.querySelectorAll<SVGRectElement>('.liquid, .liquid-h').forEach((r) => (r.style.display = 'none'));
     const liquid = root.querySelector('.liquid') as SVGRectElement;
     this.jars.set(key, { root, liquid, value: root.querySelector('.jar-value')!, level: 0, target: 0 });
     this.kick();
@@ -52,6 +58,7 @@ export class Jars {
     const j = this.jars.get(key);
     if (!j) return;
     j.target = Math.max(0, Math.min(1, level));
+    (j.root.querySelector('svg') as SVGSVGElement).dataset.level = String(j.target);
     if (j.value.textContent !== text) j.value.textContent = text;
     j.root.setAttribute('aria-label', `${j.root.querySelector('.jar-label')!.textContent}: ${text}`);
     this.kick();

@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import type { DemoFactory } from './types';
+import { upgrade } from '../render/models';
 import { inked, sketchLines } from '../render/ink';
 
 const factory: DemoFactory = (api) => {
@@ -53,6 +54,24 @@ const factory: DemoFactory = (api) => {
   cristae.group.scale.set(1.25, 0.85, 0.85);
   mito.add(mShell.group, cristae.group);
   stage.add(mito);
+  const mitoSlot = new THREE.Group();
+  mito.add(mitoSlot);
+  upgrade(stage, mitoSlot, 'mitochondria', { size: 2.1, rotation: [0.3, 0, 0], subsurface: 0.9, gloss: 0.65 }).then((m) => {
+    if (!m) return;
+    mShell.group.visible = cristae.group.visible = false;
+    mitoSlot.children.forEach((c) => (c.visible = c === m.group));
+    mitoMats.push(...m.materials);
+  });
+  const chloroSlot = new THREE.Group();
+  chloro.add(chloroSlot);
+  upgrade(stage, chloroSlot, 'chloroplast', { size: 2.3, subsurface: 0.9, gloss: 0.6 }).then((m) => {
+    if (!m) return;
+    chloro.children.forEach((c) => { if (c !== chloroSlot && c !== sunBeam.group) c.visible = false; });
+    chloroSlot.children.forEach((c) => (c.visible = c === m.group));
+    chloroMats.push(...m.materials);
+  });
+  const mitoMats: THREE.ShaderMaterial[] = [];
+  const chloroMats: THREE.ShaderMaterial[] = [];
 
   // קשתות זרימה: למעלה גלוקוז + חמצן מהכלורופלסט למיטוכונדריה; למטה CO₂ + מים בכיוון ההפוך
   const topArc: number[] = [];
@@ -133,6 +152,8 @@ const factory: DemoFactory = (api) => {
     (sunBeam.mesh.material as THREE.ShaderMaterial).uniforms.uOpacity.value = light * 0.24;
     (cShell.mesh.material as THREE.ShaderMaterial).uniforms.uPulse.value = light * 0.35;
     (cristae.mesh.material as THREE.ShaderMaterial).uniforms.uPulse.value = atp * 0.45;
+    mitoMats.forEach((mm) => (mm.uniforms.uGlow.value = atp * 0.18));
+    chloroMats.forEach((mm) => (mm.uniforms.uGlow.value = light * 0.15));
 
     flowT = (flowT + dt * (0.18 + photo * 1.8)) % 1;
     topParticles.forEach(({ obj, offset }) => {

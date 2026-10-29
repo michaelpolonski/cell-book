@@ -7,6 +7,9 @@ import type { Progress } from './Progress';
 import type { Stage3D } from '../render/Stage3D';
 import { icons } from '../ui/icons';
 import { h } from '../ui/components';
+import type { World } from '../scene/World';
+import { rasterizePage } from '../scene/PageRaster';
+import { sound } from '../scene/Sound';
 
 const mobileQuery = matchMedia('(max-width: 899px)');
 
@@ -21,7 +24,7 @@ export class Book {
   private folio!: HTMLElement;
   readonly ctx: BookCtx;
 
-  constructor(private defs: SpreadDef[], private stage: Stage3D | null, private progress: Progress, mount: HTMLElement) {
+  constructor(private defs: SpreadDef[], private stage: Stage3D | null, private progress: Progress, mount: HTMLElement, private world: World | null = null) {
     this.el = h('div', { class: 'book', role: 'region', 'aria-label': 'הספר', 'aria-roledescription': 'ספר' });
     this.live = h('div', { class: 'sr', 'aria-live': 'polite', 'aria-atomic': 'true' });
     mount.append(this.el, this.live, this.toolbar());
@@ -61,16 +64,26 @@ export class Book {
   async go(i: number, instant = false): Promise<void> {
     if (this.turning) await this.turning;
     if (i === this.cur || i < 0 || i >= this.defs.length) return;
-    const dir = i > this.cur ? 1 : -1;
-    const oldEl = this.spreadEl;
+    const job = this.doGo(i, instant);
+    this.turning = job.finally(() => { this.turning = null; });
+    return this.turning;
+  }
 
-    // תמונה של ההדגמה הנוכחית, כדי שהדף המתהפך לא יהיה ריק
-    if (oldEl && this.stage && oldEl.contains(this.stage.canvas)) {
-      const img = new Image();
-      img.src = this.stage.snapshot();
-      img.className = 'stage-canvas';
-      img.alt = '';
-      this.stage.canvas.replaceWith(img);
+  private async doGo(i: number, instant: boolean): Promise<void> {
+    const dir: 1 | -1 = i > this.cur ? 1 : -1;
+    const jump = Math.abs(i - this.cur);
+    const oldEl = this.spreadEl;
+    const still = document.body.classList.contains('still');
+    const world = this.world;
+    const animate = !!oldEl && !instant && !still && !mobileQuery.matches && !!world;
+    const sel = (el: HTMLElement, s: string) => el.querySelector(`:scope > .page-${s}`) as HTMLElement;
+
+    // "הדפסה" של הכפולה הישנה (כולל תמונת האיור התלת-ממדי) לפני שמפרקים אותה
+    let oldR: HTMLCanvasElement | null = null, oldL: HTMLCanvasElement | null = null;
+    if (animate && oldEl && world) {
+      const snap = world.snapshotStage();
+      const extras = { stage: { canvas: snap, host: this.stage?.host ?? null } };
+      [oldR, oldL] = await Promise.all([rasterizePage(sel(oldEl, 'right'), extras), rasterizePage(sel(oldEl, 'left'), extras)]);
     }
     this.view?.leave?.();
 
@@ -78,6 +91,8 @@ export class Book {
     const view = def.build(this.ctx, i);
     const el = h('div', { class: 'spread', 'data-id': def.id });
     el.append(view.right, view.left);
+    // מוסתר בשקיפות (לא visibility) כדי שאפשר יהיה "להדפיס" אותו לטקסטורה
+    if (animate) { el.style.opacity = '0'; el.style.pointerEvents = 'none'; }
     this.el.prepend(el);
     this.cur = i;
     this.view = view;
@@ -88,60 +103,38 @@ export class Book {
     view.enter?.();
     this.announce(`${def.label}, עמודים ${2 * i + 1}–${2 * i + 2}`);
 
-    const still = document.body.classList.contains('still');
-    if (!oldEl || instant) { oldEl?.remove(); view.afterTurn?.(); return; }
-    if (still || mobileQuery.matches) {
-      oldEl.remove();
-      if (mobileQuery.matches) { this.el.scrollTop = 0; if (!still) el.animate([{ opacity: 0, transform: `translateX(${-dir * 24}px)` }, { opacity: 1, transform: 'none' }], { duration: 280, easing: 'ease-out' }); }
+    if (!animate || !oldEl || !world || !oldR || !oldL) {
+      oldEl?.remove();
+      world?.track(this.el, el);
+      if (oldEl && mobileQuery.matches) {
+        this.el.scrollTop = 0;
+        if (!still) el.animate([{ opacity: 0, transform: `translateX(${-dir * 24}px)` }, { opacity: 1, transform: 'none' }], { duration: 280, easing: 'ease-out' });
+      }
+      if (oldEl && !still) sound.play('pageTurn');
       view.afterTurn?.();
       return;
     }
-    this.turning = this.flip(oldEl, el, dir).then(() => { this.turning = null; view.afterTurn?.(); });
-    return this.turning;
-  }
 
-  /**
-   * הפיכת דף. קדימה (dir=1): הדף השמאלי מתרומם ונופל ימינה, ומגלה את הכפולה החדשה.
-   * אחורה: הדף הימני נופל שמאלה.
-   */
-  private async flip(oldEl: HTMLElement, newEl: HTMLElement, dir: number) {
-    const sel = (el: HTMLElement, s: string) => el.querySelector(`:scope > .page-${s}`) as HTMLElement;
-    const lifting = sel(oldEl, dir > 0 ? 'left' : 'right');
-    const landing = sel(newEl, dir > 0 ? 'right' : 'left');
-    const clone = (p: HTMLElement, cls: string) => {
-      const c = p.cloneNode(true) as HTMLElement;
-      c.querySelectorAll('[id]').forEach((x) => x.removeAttribute('id'));
-      c.querySelectorAll('input').forEach((x) => x.removeAttribute('name'));
-      c.classList.add('face', cls);
-      c.setAttribute('aria-hidden', 'true');
-      c.inert = true;
-      return c;
-    };
-    const flipper = h('div', { class: `flipper ${dir > 0 ? 'from-left' : 'from-right'}` });
-    const front = clone(lifting, 'front');
-    const back = clone(landing, 'back');
-    flipper.append(front, back);
-    lifting.style.visibility = 'hidden';
-    oldEl.classList.add('leaving');
+    // הכפולה החדשה, מודפסת גם היא, ואז הדף מתהפך בתלת-ממד
+    await document.fonts.ready;
+    const [newR, newL] = await Promise.all([rasterizePage(sel(el, 'right')), rasterizePage(sel(el, 'left'))]);
+    oldEl.style.opacity = '0';
     oldEl.inert = true;
-    this.el.append(flipper);
-
-    const dur = 950;
-    const ease = 'cubic-bezier(.42,.08,.24,1)';
-    const anim = flipper.animate(
-      [
-        { transform: 'rotateY(0deg)' },
-        { transform: `rotateY(${dir * 90}deg) translateZ(30px)`, offset: 0.5 },
-        { transform: `rotateY(${dir * 180}deg)` },
-      ],
-      { duration: dur, easing: ease },
-    );
-    // הצללה: הדף המתרומם מחשיך, הדף הנוחת מתבהר
-    front.animate([{ ['--shade' as string]: 0 }, { ['--shade' as string]: 0.35 }], { duration: dur / 2, easing: 'ease-in', fill: 'forwards' });
-    back.animate([{ ['--shade' as string]: 0.35 }, { ['--shade' as string]: 0 }], { duration: dur / 2, delay: dur / 2, easing: 'ease-out', fill: 'both' });
-    await anim.finished.catch(() => {});
+    sound.play(jump > 1 ? 'riffle' : 'pageTurn');
+    // קדימה (ספר עברי): הדף השמאלי מתרומם ונוחת ימינה
+    await world.turn({
+      dir,
+      front: dir > 0 ? oldL : oldR,
+      back: dir > 0 ? newR : newL,
+      underLift: dir > 0 ? newL : newR,
+      underLand: dir > 0 ? oldR : oldL,
+      duration: jump > 1 ? 800 : 1050,
+    });
     oldEl.remove();
-    flipper.remove();
+    el.style.opacity = '';
+    el.style.pointerEvents = '';
+    world.track(this.el, el);
+    view.afterTurn?.();
   }
 
   private onKey(e: KeyboardEvent) {
@@ -194,6 +187,7 @@ export class Book {
     const on = force ?? !document.body.classList.contains('still');
     document.body.classList.toggle('still', on);
     if (this.stage) this.stage.still = on;
+    if (this.world) this.world.still = on;
     this.bar?.querySelector('.tb-still')?.setAttribute('aria-pressed', String(on));
     if (force === undefined) this.progress.still = on;
   }

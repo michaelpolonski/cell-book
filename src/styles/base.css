@@ -712,3 +712,45 @@ button.toc-link:hover { color: var(--rust); }
   }
   .tb-text { display: none; }
 }
+
+/* ---------- סצנת ה-WebGL (כמו ב-Every Joule): השולחן, הספר, הנייר והדף המתהפך מצוירים ב-Three.js ---------- */
+#world {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  z-index: 0;
+  pointer-events: none;
+}
+body.world #app { z-index: 1; background: transparent; }
+body.world .book { filter: none; }
+body.world .book::before,
+body.world .spread::after { display: none; }
+body.world .spread { box-shadow: none; border-radius: 0; }
+body.world .page { background: transparent; }
+body.world .stage-box {
+  background: transparent;
+  border: 1px dashed rgba(28, 36, 51, 0.16);
+  overflow: visible;
+  cursor: grab;
+}
+body.world .stage-box:active { cursor: grabbing; }
+body.world .stage-overlay { z-index: 2; }
+body.world .jar svg { overflow: visible; }
+@media (max-width: 899px) {
+  body.world { background: transparent; }
+  body.world #app { position: relative; }
+}
+.model-credits {
+  position: absolute;
+  inset: auto 8px 4px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font: 500 10.5px/1.3 var(--sans);
+  z-index: 2;
+}
+.model-credits a { color: var(--ink2); text-decoration: none; background: rgba(246, 240, 227, 0.75); padding: 0 4px; border-radius: 3px; }
+.model-credits a:hover { color: var(--rust); text-decoration: underline; }

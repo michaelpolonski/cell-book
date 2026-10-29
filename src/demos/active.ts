@@ -6,6 +6,7 @@
  */
 import * as THREE from 'three';
 import type { DemoFactory } from './types';
+import { upgrade } from '../render/models';
 import { inked, sketchLines, SpringScalar } from '../render/ink';
 
 const factory: DemoFactory = (api) => {
@@ -62,6 +63,14 @@ const factory: DemoFactory = (api) => {
   piOrb.group.position.set(0.28, -0.35, 0.22);
   piOrb.group.visible = false;
   stage.add(atpOrb.group, piOrb.group);
+  const atpSlot = new THREE.Group();
+  atpOrb.group.add(atpSlot);
+  upgrade(stage, atpSlot, 'atp', { size: 0.62, glow: 0.25, gloss: 0.8 }).then((m) => {
+    if (!m) return;
+    atpOrb.mesh.visible = false;
+    if (atpOrb.outline) atpOrb.outline.visible = false;
+    atpSlot.children.forEach((c) => (c.visible = c === m.group));
+  });
 
   // שלפוחית אנדוציטוזה/אקסוציטוזה בצד שמאל עם חלקיקי מטען בתוכה
   const vesicleGroup = new THREE.Group();

@@ -1,8 +1,10 @@
 /**
- * הבמה התלת-ממדית הקולנועית:
- * - מצלמה עם תנועת קפיץ מרוסנת (Spring-Damper Camera Choreography) ונשימה עדינה
- * - סביבה מימית חיה עם חלקיקי ציטופלזמה מרחפים (Brownian Motes) לעומק ופרלקסה
- * - עדכון אוטומטי של זמן ה-Shader (uTime) לתנודות אורגניות של קרומים ואברונים
+ * הבמה התלת-ממדית של כל הדגמה. היא כבר לא מציירת לקנבס משלה:
+ * היא מרנדרת ל-Render Target (HDR) בעזרת ה-renderer של העולם, והעולם מציג אותה ככרטיס
+ * שמתרומם מהדף – בתוך אותה סצנה, עם אותו Bloom וצל על הנייר (כמו ב-Every Joule).
+ * - מצלמה עם תנועת קפיץ מרוסנת ונשימה עדינה
+ * - חלקיקי ציטופלזמה מרחפים (Brownian motes) לעומק ופרלקסה
+ * - עדכון אוטומטי של uTime לתנודות אורגניות של קרומים ואברונים
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -13,7 +15,7 @@ type Ticker = (dt: number, t: number) => void;
 export function hasWebGL(): boolean {
   try {
     const c = document.createElement('canvas');
-    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+    return !!c.getContext('webgl2');
   } catch {
     return false;
   }
@@ -22,15 +24,22 @@ export function hasWebGL(): boolean {
 const MOTE_COUNT = 95;
 
 export class Stage3D {
-  readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
   readonly controls: OrbitControls;
-  /** כל תוכן ההדגמה נכנס לקבוצה הזאת, כדי שאפשר "להרים" אותו מהדף. */
+  /** כל תוכן ההדגמה נכנס לקבוצה הזאת. */
   readonly root = new THREE.Group();
+  /** הפלט: טקסטורת HDR שהעולם מציג ככרטיס על הדף. */
+  readonly target: THREE.WebGLRenderTarget;
+  /** כמה פיקסלים האיור רשאי לחרוג ממסגרת הבמה כשהוא "קם" מהדף. */
+  readonly margin = 34;
   /** 0 = עצור, 1 = מהירות רגילה. */
   timeScale = 1;
   still = false;
+  host: HTMLElement | null = null;
+  /** העולם מאזין כדי להפעיל את אנימציית השרטוט והקימה. */
+  onLift: (() => void) | null = null;
+  onFlatten: (() => void) | null = null;
 
   private tickers = new Set<Ticker>();
   private waits: { left: number; resolve: () => void }[] = [];
@@ -41,22 +50,24 @@ export class Stage3D {
   private lookSpring = new Spring3D(new THREE.Vector3(0, 0, 0), 11, 5.2);
   private camGuided = true;
   private userDragging = false;
-  private liftT = 1;
-  private host: HTMLElement | null = null;
-  private ro = new ResizeObserver(() => this.resize());
-  private last = performance.now();
   private time = 0;
-  private running = false;
+  private size = new THREE.Vector2(1, 1);
+  private dpr = Math.min(devicePixelRatio || 1, 2);
+  private dummy = document.createElement('div');
 
   constructor() {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    this.renderer.setClearColor(0x000000, 0);
-    this.renderer.domElement.className = 'stage-canvas';
-    this.renderer.domElement.setAttribute('aria-hidden', 'true');
+    this.target = new THREE.WebGLRenderTarget(4, 4, {
+      type: THREE.HalfFloatType,
+      samples: 4,
+      depthBuffer: true,
+    });
     this.scene.add(this.root);
+    const amb = new THREE.HemisphereLight(0xfff6e8, 0x6b5d4a, 1.4);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(-2, 4, 3);
+    this.scene.add(amb, sun);
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls = new OrbitControls(this.camera, this.dummy);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.enablePan = false;
@@ -67,7 +78,7 @@ export class Stage3D {
     this.controls.addEventListener('start', () => { this.userDragging = true; this.camGuided = false; });
     this.controls.addEventListener('end', () => { this.userDragging = false; });
 
-    // צל רך מתחת לאובייקט: מראה שהוא התרומם מהדף
+    // צל רך מתחת לאובייקט
     const c = document.createElement('canvas');
     c.width = c.height = 128;
     const g = c.getContext('2d')!;
@@ -84,7 +95,7 @@ export class Stage3D {
     this.shadow.rotation.x = -Math.PI / 2;
     this.scene.add(this.shadow);
 
-    // חלקיקי סביבה מימית (Brownian cytoplasmic motes) לתחושת עומק וחיים
+    // חלקיקי סביבה מימית
     const rnd = mulberry32(42);
     const pos = new Float32Array(MOTE_COUNT * 3);
     for (let i = 0; i < MOTE_COUNT; i++) {
@@ -95,7 +106,6 @@ export class Stage3D {
     this.moteBase = pos.slice();
     const moteGeo = new THREE.BufferGeometry();
     moteGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-
     const dotCanvas = document.createElement('canvas');
     dotCanvas.width = dotCanvas.height = 32;
     const dg = dotCanvas.getContext('2d')!;
@@ -105,48 +115,30 @@ export class Stage3D {
     dGrad.addColorStop(1, 'rgba(60, 95, 130, 0)');
     dg.fillStyle = dGrad;
     dg.fillRect(0, 0, 32, 32);
-
-    this.motes = new THREE.Points(
-      moteGeo,
-      new THREE.PointsMaterial({
-        size: 0.14,
-        map: new THREE.CanvasTexture(dotCanvas),
-        transparent: true,
-        depthWrite: false,
-        opacity: 0.65,
-      }),
-    );
+    this.motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
+      size: 0.14, map: new THREE.CanvasTexture(dotCanvas), transparent: true, depthWrite: false, opacity: 0.65,
+    }));
     this.scene.add(this.motes);
 
     this.reset();
   }
 
-  get canvas() { return this.renderer.domElement; }
-
+  /** מחבר את הבמה למסגרת שלה בדף (אזור הגרירה של OrbitControls ומיקום הכרטיס). */
   attach(host: HTMLElement) {
-    if (this.host) this.ro.unobserve(this.host);
     this.host = host;
-    host.appendChild(this.canvas);
-    this.ro.observe(host);
-    this.resize();
-    if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame(this.loop); }
+    this.controls.disconnect();
+    (this.controls as unknown as { domElement: HTMLElement }).domElement = host;
+    this.controls.connect();
+    host.style.touchAction = 'none';
   }
 
-  /** מגדיר את הצל: מרכז, גודל וגובה הרצפה. */
   setShadow(y: number, sx: number, sz: number) {
     this.shadow.position.set(0, y, 0);
     this.shadow.scale.set(sx, sz, 1);
   }
 
-  /**
-   * תנועת מצלמה קולנועית (בסגנון 3Blue1Brown / Drew Berry):
-   * מחליקה את המצלמה ואת נקודת המבט בעזרת קפיץ מרוסן.
-   */
-  focusOn(
-    camPos: [number, number, number],
-    lookAt: [number, number, number] = [0, 0, 0],
-    instant = false,
-  ) {
+  /** תנועת מצלמה קולנועית: מחליקה את המצלמה ואת נקודת המבט בעזרת קפיץ מרוסן. */
+  focusOn(camPos: [number, number, number], lookAt: [number, number, number] = [0, 0, 0], instant = false) {
     this.camGuided = true;
     this.camSpring.pos.copy(this.camera.position);
     this.lookSpring.pos.copy(this.controls.target);
@@ -161,22 +153,10 @@ export class Stage3D {
     }
   }
 
-  /** האנימציה שבה האיור "קם" מהדף: מתחיל שטוח כמו שרטוט, ומקבל נפח. */
-  lift() {
-    this.liftT = this.still ? 1 : 0;
-    this.applyLift();
-  }
-
+  /** האיור משורטט בעט על הדף ואז "קם" ממנו (האנימציה עצמה בעולם). */
+  lift() { this.onLift?.(); }
   /** משאיר את האיור שטוח על הדף (לפני ה-lift). */
-  flatten() { this.liftT = 0; this.applyLift(); }
-
-  private applyLift() {
-    const t = this.liftT;
-    const e = t >= 1 ? 1 : 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
-    this.root.scale.set(1, Math.max(0.02, e), 1);
-    this.root.position.y = -0.4 * (1 - Math.min(1, e));
-    (this.shadow.material as THREE.MeshBasicMaterial).opacity = Math.min(1, t * 1.4);
-  }
+  flatten() { this.onFlatten?.(); }
 
   add(...objs: THREE.Object3D[]) { this.root.add(...objs); return objs[0]; }
 
@@ -187,7 +167,6 @@ export class Stage3D {
     return new Promise((resolve) => this.waits.push({ left: ms / 1000, resolve }));
   }
 
-  /** מנקה את הסצנה לקראת הדגמה חדשה. */
   reset() {
     for (const c of [...this.root.children]) { this.root.remove(c); disposeTree(c); }
     this.tickers.clear();
@@ -201,58 +180,47 @@ export class Stage3D {
     this.setShadow(-1.4, 4, 2.5);
   }
 
-  snapshot(): string {
-    this.renderer.render(this.scene, this.camera);
-    return this.canvas.toDataURL('image/png');
-  }
-
-  private resize() {
+  private resize(renderer: THREE.WebGLRenderer) {
     if (!this.host) return;
-    const w = Math.max(1, this.host.clientWidth), h = Math.max(1, this.host.clientHeight);
-    this.renderer.setSize(w, h, false);
+    const r = this.host.getBoundingClientRect();
+    const w = Math.max(2, Math.round(r.width)), h = Math.max(2, Math.round(r.height));
+    if (w === this.size.x && h === this.size.y) return;
+    this.size.set(w, h);
+    const m = this.margin;
+    this.target.setSize(Math.round((w + 2 * m) * this.dpr), Math.round((h + 2 * m) * this.dpr));
     this.camera.aspect = w / h;
     this.camera.zoom = Math.min(1, (w / h) / 1.1);
+    // המסגרת הפנימית = המצלמה הרגילה; הכרטיס מרונדר עם שוליים סביבה, כדי שהאיור יוכל לחרוג מהמסגרת
+    this.camera.setViewOffset(w, h, -m, -m, w + 2 * m, h + 2 * m);
     this.camera.updateProjectionMatrix();
+    void renderer;
   }
 
-  private loop = (now: number) => {
-    requestAnimationFrame(this.loop);
-    const raw = Math.min(0.12, (now - this.last) / 1000);
-    this.last = now;
-    if (!this.host || !this.canvas.isConnected) return;
-    if (this.liftT < 1) { this.liftT = Math.min(1, this.liftT + raw / 1.1); this.applyLift(); }
+  /** נקרא מלולאת העולם בכל פריים. */
+  frame(renderer: THREE.WebGLRenderer, raw: number) {
+    if (!this.host || !this.host.isConnected) return;
+    this.resize(renderer);
     const dt = (this.still ? 0 : raw) * this.timeScale;
     this.time += dt;
+    for (const mat of animatedMaterials) if (mat.uniforms.uTime) mat.uniforms.uTime.value = this.time;
 
-    // עדכון הזמן בכל חומרי ה-Shader לתנודה ביולוגית רציפה
-    for (const mat of animatedMaterials) {
-      if (mat.uniforms.uTime) mat.uniforms.uTime.value = this.time;
-    }
-
-    // הנפשת החלקיקים המרחפים בציטופלזמה (תנועה בראונית עדינה)
     if (dt > 0) {
       const attr = this.motes.geometry.getAttribute('position') as THREE.BufferAttribute;
       const arr = attr.array as Float32Array;
       for (let i = 0; i < MOTE_COUNT; i++) {
-        const bx = this.moteBase[i * 3];
-        const by = this.moteBase[i * 3 + 1];
-        const bz = this.moteBase[i * 3 + 2];
-        arr[i * 3] = bx + Math.sin(this.time * 0.65 + i * 1.3) * 0.18;
-        arr[i * 3 + 1] = by + Math.cos(this.time * 0.55 + i * 0.9) * 0.16;
-        arr[i * 3 + 2] = bz + Math.sin(this.time * 0.45 + i * 1.7) * 0.15;
+        arr[i * 3] = this.moteBase[i * 3] + Math.sin(this.time * 0.65 + i * 1.3) * 0.18;
+        arr[i * 3 + 1] = this.moteBase[i * 3 + 1] + Math.cos(this.time * 0.55 + i * 0.9) * 0.16;
+        arr[i * 3 + 2] = this.moteBase[i * 3 + 2] + Math.sin(this.time * 0.45 + i * 1.7) * 0.15;
       }
       attr.needsUpdate = true;
     }
 
-    // מצלמה קולנועית מונחית קפיץ + נשימה עדינה כשלא גוררים ידנית
     if (this.camGuided && !this.userDragging && dt > 0) {
       this.camSpring.step(Math.min(0.05, dt));
       this.lookSpring.step(Math.min(0.05, dt));
-      const breatheX = Math.sin(this.time * 0.55) * 0.06;
-      const breatheY = Math.cos(this.time * 0.42) * 0.04;
       this.camera.position.set(
-        this.camSpring.pos.x + breatheX,
-        this.camSpring.pos.y + breatheY,
+        this.camSpring.pos.x + Math.sin(this.time * 0.55) * 0.06,
+        this.camSpring.pos.y + Math.cos(this.time * 0.42) * 0.04,
         this.camSpring.pos.z,
       );
       this.controls.target.copy(this.lookSpring.pos);
@@ -266,6 +234,54 @@ export class Stage3D {
     }
     this.tickers.forEach((f) => f(dt, this.time));
     this.controls.update();
-    this.renderer.render(this.scene, this.camera);
-  };
+    this.render(renderer);
+  }
+
+  private render(renderer: THREE.WebGLRenderer) {
+    const prevTarget = renderer.getRenderTarget();
+    const prevClear = renderer.getClearColor(new THREE.Color());
+    const prevAlpha = renderer.getClearAlpha();
+    renderer.setRenderTarget(this.target);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear(true, true, false);
+    renderer.render(this.scene, this.camera);
+    renderer.setRenderTarget(prevTarget);
+    renderer.setClearColor(prevClear, prevAlpha);
+  }
+
+  /** תמונה של הבמה (רק המסגרת הפנימית), לדף המתהפך. */
+  snapshot(renderer: THREE.WebGLRenderer): HTMLCanvasElement | null {
+    if (!this.host) return null;
+    const W = this.target.width, H = this.target.height;
+    if (W < 4 || H < 4) return null;
+    const plain = new THREE.WebGLRenderTarget(W, H, { type: THREE.UnsignedByteType });
+    const prevTarget = renderer.getRenderTarget();
+    renderer.setRenderTarget(plain);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear(true, true, false);
+    renderer.render(this.scene, this.camera);
+    const px = new Uint8Array(W * H * 4);
+    renderer.readRenderTargetPixels(plain, 0, 0, W, H, px);
+    renderer.setRenderTarget(prevTarget);
+    plain.dispose();
+    const full = document.createElement('canvas');
+    full.width = W; full.height = H;
+    const g = full.getContext('2d')!;
+    const img = g.createImageData(W, H);
+    for (let y = 0; y < H; y++) {
+      const src = (H - 1 - y) * W * 4;
+      img.data.set(px.subarray(src, src + W * 4), y * W * 4);
+    }
+    // צבעים מוכפלים באלפא → רגילים
+    for (let i = 0; i < img.data.length; i += 4) {
+      const a = img.data[i + 3];
+      if (a > 0 && a < 255) { const k = 255 / a; img.data[i] = Math.min(255, img.data[i] * k); img.data[i + 1] = Math.min(255, img.data[i + 1] * k); img.data[i + 2] = Math.min(255, img.data[i + 2] * k); }
+    }
+    g.putImageData(img, 0, 0);
+    const m = Math.round(this.margin * this.dpr);
+    const out = document.createElement('canvas');
+    out.width = W - 2 * m; out.height = H - 2 * m;
+    out.getContext('2d')!.drawImage(full, m, m, out.width, out.height, 0, 0, out.width, out.height);
+    return out;
+  }
 }

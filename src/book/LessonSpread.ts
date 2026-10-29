@@ -10,6 +10,7 @@ import { Jars } from '../ui/Jars';
 import { StepPlayer } from '../ui/StepPlayer';
 import { h, tickGroup, flap, wordChips, stampSvg } from '../ui/components';
 import { icons } from '../ui/icons';
+import { sound } from '../scene/Sound';
 
 const STEP_LABELS: [StepKey, string][] = [
   ['predict', 'סמן ניבוי לפני שמתחילים'],
@@ -175,6 +176,7 @@ export function lessonSpread(lesson: Lesson): SpreadDef {
               challengeMet: () => {
                 progress.addStamp(lesson.n);
                 stampSlot.classList.add('stamped', 'pop');
+                sound.play('stamp');
                 syncRibbon();
                 ctx.announce('עמדת באתגר! קיבלת חותמת.');
               },

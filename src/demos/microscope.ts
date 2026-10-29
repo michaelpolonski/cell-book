@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import type { DemoFactory } from './types';
+import { upgrade } from '../render/models';
 import { inked, sketchLines, SpringScalar } from '../render/ink';
 import { totalMagnification } from '../sim/models';
 
@@ -42,8 +43,12 @@ const factory: DemoFactory = (api) => {
   const knob = inked(new THREE.CylinderGeometry(0.2, 0.2, 0.14, 20), { color: '#9a3b2a', outline: 0.015, wobble: 0 });
   knob.group.rotation.x = Math.PI / 2;
   knob.group.position.set(0.42, -0.55, 0);
-  scope.add(base.group, arm.group, lampGlow.group, stagePlate.group, slide.group, tube.group, turret, knob.group);
+  const body = new THREE.Group();
+  body.add(base.group, arm.group, stagePlate.group, tube.group, turret, knob.group);
+  scope.add(body, lampGlow.group, slide.group);
   stage.add(scope);
+  // מודל מיקרוסקופ אמיתי מ-Sketchfab (אם הורד), בצביעת דיו
+  upgrade(stage, body, 'microscope', { size: 2.7, offset: [0, 0.05, 0], rotation: [0, -0.6, 0], hatch: 0.75, gloss: 0.7, subsurface: 0.2 });
 
   // שדה ראייה עגול בצד שמאל עם זרימה ציטופלזמית (ציקלוזיס) בתוך תאי הבצל
   const field = new THREE.Group();
